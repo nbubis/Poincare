@@ -1,2 +1,5 @@
+'''Imports for the poincare package.'''
 
-from poincare import euclidean, hyperbolic
+from . euclidean import Point, Line, Circle
+from . hyperbolic import HyperbolicLine, HyperbolicPoint
+from . poincaredisk import PoincareDiskModel

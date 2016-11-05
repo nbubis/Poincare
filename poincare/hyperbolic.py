@@ -1,8 +1,7 @@
 
 import math
 from numbers import Real
-from scipy.optimize import minimize_scalar
-from euclidean import Point, Line, Circle
+from . euclidean import Point, Line, Circle
 
 
 def unit_circle():
@@ -45,6 +44,27 @@ class HyperbolicPoint(Point):
         '''Returns the polar line of a point, defined as the locus of all arc centers passing through the point.'''
         return Line(2.0*self.x, 2.0*self.y, 1.0 + self.x**2 + self.y**2)
 
+    @staticmethod
+    def angle_between_three_points(point_1, point_2, point_3):
+        '''Returns the angle in radians formed between point 1, point 2 and point 3.
+           Returned angle will be in between zero and pi.'''
+        a, b, c = point_1.distance(point_2), point_2.distance(point_3), point_1.distance(point_3)
+        cos_angle = (math.cosh(a) * math.cosh(b) - math.cosh(c)) / math.sinh(a) / math.sinh(b)
+        try:
+            return math.acos(cos_angle)
+        except ValueError:
+            return 0.0
+
+    def hyperbolic_circle(self, hyperbolic_radius):
+        '''Return a hyperbolic circle, having the prescribed hyperbolic radius and centered around the current point.'''
+        euclidean_dist_to_center = self.euclidean_distance_to_origin()
+        dist_to_near_point = math.tanh(0.5*(2.0 * math.atanh(euclidean_dist_to_center) - hyperbolic_radius))
+        dist_to_far_point = math.tanh(0.5*(2.0 * math.atanh(euclidean_dist_to_center) + hyperbolic_radius))
+        near_point = self * (dist_to_near_point / euclidean_dist_to_center)
+        far_point = self * (dist_to_far_point / euclidean_dist_to_center)
+        radius = (far_point - near_point).euclidean_distance_to_origin() / 2
+        center = (far_point + near_point) / 2
+        return Circle(center, radius)
 
 class HyperbolicLine(object):
     '''Class for lines in hyperblic space, as represented by the Poincare Disk Model
@@ -55,7 +75,7 @@ class HyperbolicLine(object):
         '''Constructs a HyperbolicLine between two Points.'''
         if not point_a.is_in_unit_disk() or not point_b.is_in_unit_disk():
             raise ValueError('Points must be inside the unit disk.')
-        self._end_points = [point_a, point_b]
+        self._end_points = [HyperbolicPoint(point_a), HyperbolicPoint(point_b)]
         self._is_a_straight_line = False
 
         try:
@@ -110,26 +130,28 @@ class HyperbolicLine(object):
     def line_at_angle(self, angle, length):
         '''Returns a line starting from the end point of the current line, having the prescribed length,
            and meeting the existing line at the specified angle.'''
-        anchor = self._end_points[1]
+        anchor = self.end_points[1]
         polar = anchor.polar_line()
         if not self.is_a_straight_line:
+
             pole = self.representation().center
-            line = Line(pole, anchor)
-            rotated_line = line.rotated_line(anchor, angle)
-            new_center = rotated_line.intersection(polar)
-            radius = Point.distance(self, new_center)
-            initial_azimuth = (anchor - new_center).azimuth()
-            Circle(new_center, radius).intersection(unit_circle())
+            rotated_line = Line(pole, anchor).rotated_line(anchor, angle)
+            new_center = HyperbolicPoint(rotated_line.intersection(polar)[0])
+            new_radius = Point.distance(anchor, new_center)
+            new_arc = Circle(new_center, new_radius)
+            candidate_end_points = anchor.hyperbolic_circle(length).intersection(new_arc)
+            candidate_end_points = [HyperbolicPoint(end_point) for end_point in candidate_end_points]
+            if angle == 0.0:
+                dist1, dist2 = [end_point.distance(self.end_points[0]) for end_point in candidate_end_points]
+                end_point = candidate_end_points[0] if dist1 > dist2 else candidate_end_points[1]
+                return HyperbolicLine(anchor, end_point)
 
-            def length_diff(end_angle):
-                p = new_center + HyperbolicPoint(radius * math.cos(end_angle), radius * math.sin(end_angle))
-                if not p.is_in_unit_disk():
-                    return float("inf")
-                return p.distance(anchor) - length
+            for end_point in candidate_end_points:
+                formed_angle = HyperbolicPoint.angle_between_three_points(
+                    self.end_points[0], self.end_points[1], end_point)
 
-            end_angle = minimize_scalar(
-                length_diff, bracket=[initial_azimuth, 2 * math.pi], method='golden', tol=1.0e-12).x
-            end_point = new_center + HyperbolicPoint(radius * math.cos(end_angle), radius * math.sin(end_angle))
-            return HyperbolicLine(anchor, end_point)
-        return None
-
+                if abs(formed_angle + abs(angle) - math.pi) < 1.0e-4:
+                    return HyperbolicLine(anchor, end_point)
+        else: # if is a straight line
+            return self.representation().rotated_line(anchor, angle)
+        raise Exception

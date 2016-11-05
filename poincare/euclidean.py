@@ -39,7 +39,7 @@ class Point(namedtuple('Point', 'x y')):
         if isinstance(other, type(self)):
             return self.x * other.x + self.y * other.y
         elif isinstance(other, Real):
-            return Point(self.x * other, self.y * other)
+            return type(self)(self.x * other, self.y * other)
         else:
             raise NotImplementedError
 

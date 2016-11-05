@@ -1,12 +1,12 @@
 
 import math
 import bokeh.plotting
-from hyperbolic import HyperbolicLine, HyperbolicPoint
+from . hyperbolic import HyperbolicLine, HyperbolicPoint
 
 class PoincareDiskModel():
     def __init__(self):
-        self._plot = bokeh.plotting.figure(plot_width=600, plot_height=600, min_border=100,
-                                           x_range=(-1, 1), y_range=(-1, 1), tools='', logo=None)
+        self._plot = bokeh.plotting.figure(plot_width=600, plot_height=600, min_border=50,
+                                           x_range=(-1, 1), y_range=(-1, 1), tools=['zoom_in', 'zoom_out'], logo=None)
         self._plot.arc(x=0.0, y=0.0, radius=1.0, start_angle=0.0, end_angle=2.0*math.pi)
 
     def drawpoint(self, point):
@@ -33,25 +33,24 @@ class PoincareDiskModel():
     def show(self):
         bokeh.plotting.show(self._plot)
 
+    def save(self, filename):
+        bokeh.plotting.save(obj=self._plot, filename=filename)
+
 def main():
     pdm = PoincareDiskModel()
     p1 = HyperbolicPoint(+0.5, -0.5)
     p2 = HyperbolicPoint(+0.5, +0.5)
-    p3 = HyperbolicPoint(-0.5, +0.5)
-    p4 = HyperbolicPoint(-0.5, -0.5)
 
     l1 = HyperbolicLine(p1, p2)
-    l2 = HyperbolicLine(p2, p3)
-    l3 = HyperbolicLine(p3, p4)
-    l4 = HyperbolicLine(p4, p1)
-
+    for i in range(10):
+        l2 = l1.line_at_angle(math.radians(36 * i - 180), 2)
+        pdm.drawline(l2)
+        pdm.drawpoint(l2.end_points[1])
     pdm.drawline(l1)
-    pdm.drawline(l2)
-    pdm.drawline(l3)
-    pdm.drawline(l4)
-    for p in [p1, p2, p3, p4]:
+
+    for p in [p1, p2]:
         pdm.drawpoint(p)
-    pdm.show()
+    pdm.save('test.html')
 
 if __name__ == '__main__':
     main()
