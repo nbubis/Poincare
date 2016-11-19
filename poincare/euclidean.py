@@ -85,7 +85,7 @@ class Line(namedtuple('Line', 'a b c')):
     def distance_to_point(self, point):
         '''Returns distance between the current Line and a Point.'''
         orthogonal_line = self.orthogonal_line_at_point(point)
-        intersection_point = _line_line_intersection(self, orthogonal_line)
+        intersection_point = _line_line_intersection(self, orthogonal_line)[0]
         return point.distance(intersection_point)
 
     def distance_to_origin(self):
